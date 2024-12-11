@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>In-ADS komponent</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script type="text/javascript" src="https://inaadress.maaamet.ee/inaadress/js/inaadress.min.js?d=20220510"></script>
+    <style>
+      .page-title {
+        font-family: Inter, sans-serif;
+        font-size: 24px;
+        font-weight: 600;
+        padding-top: 2em;
+        padding-left: 8px;
+      }
+
+      .section-title {
+        font-family: Inter, sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+        padding-top: 1em;
+        padding-left: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="page-title">Soojuspumba ehitusteatis</h1>
+      <h3 class="section-title">Aadress <span class="required">*</span></h3>
+    </div>
+    <div id="InAadressDiv" style="width: 600px; height: 450px"></div>
+
+    <script>
+      var inAadress = new InAadress({
+        container: "InAadressDiv",
+        mode: 1,
+        ihist: "1993",
+        tools: ["measure"],
+        searchLayers: ["EHITISHOONE"],
+        displayfilter: true,
+        defaultBaseLayer: "ALUSKAART",
+        baseLayers: ["ALUSKAART"],
+        mapLayers: ["AADRESS"],
+        WMS: [],
+        appartment: 1,
+        lang: "et",
+      });
+
+      document.addEventListener("addressSelected", function (e) {
+        var info = e.detail;
+
+        if (info && info.aadress) {
+          console.log("Valitud aadress:", info.aadress);
+
+          // API päring aadressi alusel
+          const apiUrl = `https://inaadress.maaamet.ee/inaadress/gazetteer?address=${encodeURIComponent(
+            info.aadress
+          )}&seosreg=1&ehr=1`;
+
+          fetch(apiUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("API päring ebaõnnestus: " + response.status);
+              }
+              return response.json();
+            })
+            .then((data) => {
+              if (data.addresses && data.addresses.length > 0) {
+                const aadressInfo = data.addresses[0]; // Esimene vaste
+                const ehrInfo = aadressInfo.ehr || {};
+
+                // Võtame vajalikud andmed välja
+                const ehrKood = ehrInfo.ehr_kood || "";
+                const ehitiseNimetus = ehrInfo.ehitise_nimetus || "";
+                const ehitisePind = ehrInfo.ehitisealune_pind || "";
+                const kasutusOtstarve = ehrInfo.kasutusotstarbed || "";
+
+                console.log("EHR kood:", ehrKood);
+                console.log("Ehitise nimetus:", ehitiseNimetus);
+                console.log("Ehitisealune pind:", ehitisePind);
+                console.log("Kasutusotstarve:", kasutusOtstarve);
+
+                // Muudame Tally iframe'i URL-i
+                const iframe = document.querySelector("iframe[data-tally-src]");
+                if (iframe) {
+                  const baseUrl = iframe.dataset.tallySrc.split("?")[0];
+                  const newUrl = `${baseUrl}?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1&ehr_kood=${encodeURIComponent(
+                    ehrKood
+                  )}&ehitise_nimetus=${encodeURIComponent(
+                    ehitiseNimetus
+                  )}&ehitisealune_pind=${encodeURIComponent(
+                    ehitisePind
+                  )}&kasutusotstarve=${encodeURIComponent(kasutusOtstarve)}`;
+                  iframe.src = newUrl;
+
+                  console.log("Uuendatud iframe URL:", newUrl);
+                }
+              } else {
+                console.error("Aadressile vastavat EHR infot ei leitud.");
+              }
+            })
+            .catch((error) => {
+              console.error("Viga API päringu käigus:", error);
+            });
+        } else {
+          console.error("Aadress ei ole määratud või puudub.");
+        }
+      });
+    </script>
+
+    <iframe
+      data-tally-src="https://tally.so/embed/mJVQM7?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1&ehr_kood=&ehitise_nimetus=&ehitisealune_pind=&kasutusotstarve="
+      loading="lazy"
+      width="100%"
+      height="1917"
+      frameborder="0"
+      marginheight="0"
+      marginwidth="0"
+      title="null"
+    ></iframe>
+    <script>
+      var d = document,
+        w = "https://tally.so/widgets/embed.js",
+        v = function () {
+          "undefined" != typeof Tally
+            ? Tally.loadEmbeds()
+            : d
+                .querySelectorAll("iframe[data-tally-src]:not([src])")
+                .forEach(function (e) {
+                  e.src = e.dataset.tallySrc;
+                });
+        };
+      if ("undefined" != typeof Tally) v();
+      else if (d.querySelector('script[src="' + w + '"]') == null) {
+        var s = d.createElement("script");
+        (s.src = w), (s.onload = v), (s.onerror = v), d.body.appendChild(s);
+      }
+    </script>
+  </body>
+</html>
